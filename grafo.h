@@ -102,4 +102,7 @@ char *vertices_corte(grafo *g);
 
 char *arestas_corte(grafo *g);
 
+
+void imprime_grafo(grafo *g);
+
 #endif

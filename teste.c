@@ -6,6 +6,7 @@
 int main(void) {
 
   grafo *g = le_grafo(stdin);
+  imprime_grafo(g);
   /*char *s;
 
   printf("grafo: %s\n", nome(g));
