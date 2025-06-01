@@ -27,11 +27,12 @@ typedef struct nodo_lista_vertice {
 typedef struct grafo {
     char nome[MAX_LINHA];
     int quantidade_vertices;
+    int quantidade_arestas;
     nodo_lista_vertice *inicio;
 } grafo;
 
 
-// ------- FUNÇÕES -------
+// ------- FUNÇÕES AUXILIARES -------
 static grafo *cria_grafo(void) {
     grafo *g = malloc(sizeof(grafo));
     if (!g) {
@@ -40,6 +41,7 @@ static grafo *cria_grafo(void) {
     }
     g->inicio = NULL;
     g->quantidade_vertices = 0;
+    g->quantidade_arestas = 0;
     strcpy(g->nome, "");
     return g;
 }
@@ -134,6 +136,7 @@ grafo *le_grafo(FILE *f) {
             nodo_lista_vertice *v2 = adiciona_vertice(g, nome_vertice2);
             adiciona_aresta(g, v1, v2, peso);
             adiciona_aresta(g, v2, v1, peso);
+            g->quantidade_arestas++;
 
         } else if(strlen(g->nome) == 0) {
             sscanf(linha, "%s", g->nome);
@@ -152,6 +155,8 @@ void imprime_grafo(grafo *g) {
     nodo_lista_aresta *aresta = NULL;
     printf("Nome grafo: %s\n", g->nome);
     printf("Quantidade de vértices: %d\n", g->quantidade_vertices);
+    printf("Quantidade de arestas: %d\n", g->quantidade_arestas);
+    printf("---------------------------------\n");
     while (vertice) {
         printf("%s: ", vertice->pai->nome);
         aresta = vertice->inicio;
@@ -162,4 +167,18 @@ void imprime_grafo(grafo *g) {
         vertice = vertice->proximo;
         printf("\n");
     }
+}
+
+
+// ------- FUNÇÕES PRINCIPAIS -------
+unsigned int n_vertices(grafo *g) {
+    return g->quantidade_vertices;
+}
+
+unsigned int n_arestas(grafo *g) {
+    return g->quantidade_arestas;
+}
+
+char *nome(grafo *g) {
+    return g->nome;
 }
