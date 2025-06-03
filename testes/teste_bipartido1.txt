@@ -1,0 +1,10 @@
+// o nome do grafo
+grafo_bipartido_simples
+
+// uma lista com três arestas e seus pesos
+um -- dois 10
+um -- quatro 20
+três -- dois 15
+
+// um vértice isolado
+cinco
