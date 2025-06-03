@@ -5,7 +5,7 @@
 
 #define MAX_LINHA 2047
 
-// ------- ESTRUTURAS -------
+// ------------------ ESTRUTURAS ------------------
 typedef struct vertice {
     char nome[MAX_LINHA];
     int distancia;
@@ -50,7 +50,7 @@ typedef struct fila {
     int *quantidade;
 } fila;
 
-// ------- FUNÇÕES AUXILIARES -------
+// -------------------------FUNÇÕES AUXILIARES ------------------
 static grafo *cria_grafo(void) {
     grafo *g = malloc(sizeof(grafo));
     if (!g) {
@@ -276,18 +276,32 @@ int BFS(grafo *g, nodo_lista_vertice *raiz) {
     return 1;
 }
 
-// ------- FUNÇÕES PRINCIPAIS -------
+// ------------------ FUNÇÕES PRINCIPAIS ------------------
+
+
 unsigned int n_vertices(grafo *g) {
     return g->quantidade_vertices;
 }
+
+
+// --------------------------------------------------------
+
 
 unsigned int n_arestas(grafo *g) {
     return g->quantidade_arestas;
 }
 
+
+// --------------------------------------------------------
+
+
 char *nome(grafo *g) {
     return g->nome;
 }
+
+
+// --------------------------------------------------------
+
 
 int BFS_bipartido(grafo *g, nodo_lista_vertice *raiz) {
     fila *fila = cria_fila();
@@ -325,7 +339,6 @@ int BFS_bipartido(grafo *g, nodo_lista_vertice *raiz) {
     return 1;
 }
 
-// Se houver aresta fora da árvore na BFS que ligue vértices de mesmo nível, retorna 1
 unsigned int bipartido(grafo *g) {
     nodo_lista_vertice *nodo_vertice = g->inicio;
     while(nodo_vertice) {
@@ -346,8 +359,9 @@ unsigned int bipartido(grafo *g) {
 }
 
 
+// --------------------------------------------------------
 
-// AINDA NÃO FOI FEITO
+
 void BFS_componente(grafo *g, nodo_lista_vertice *raiz) {
     fila *fila = cria_fila();
     raiz->nodo_pai = NULL;
@@ -396,4 +410,36 @@ unsigned int n_componentes(grafo *g) {
         nodo_vertice = nodo_vertice->proximo;
     }
     return quantidade_componentes;
+}
+
+
+// --------------------------------------------------------
+
+
+char *vertices_corte(grafo *g) {
+
+}
+
+
+// --------------------------------------------------------
+
+
+char *arestas_corte(grafo *g) {
+
+}
+
+
+// --------------------------------------------------------
+
+
+char *diametros(grafo *g) {
+
+}
+
+
+// --------------------------------------------------------
+
+
+unsigned int destroi_grafo(grafo *g) {
+    
 }
