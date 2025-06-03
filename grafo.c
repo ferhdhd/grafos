@@ -388,7 +388,7 @@ unsigned int n_componentes(grafo *g) {
 
     nodo_vertice = g->inicio;
     while(nodo_vertice) {
-        if(nodo_vertice->estado == 0) {
+        if(nodo_vertice->vertice->estado == 0) {
             printf("análise a partir da raiz %s\n", nodo_vertice->vertice->nome);
             BFS_componente(g, nodo_vertice);
             quantidade_componentes++;

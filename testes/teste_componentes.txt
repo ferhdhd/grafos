@@ -1,0 +1,28 @@
+// grafo com 3 componentes
+
+grafo_3_componentes_20
+
+// componente 1: ciclo par com 8 vértices
+V1 -- V2 3
+V2 -- V3 5
+V3 -- V4 7
+V4 -- V5 4
+V5 -- V6 6
+V6 -- V7 3
+V7 -- V8 2
+V8 -- V1 4
+
+// componente 2: árvore com 7 vértices
+T1 -- T2 1
+T1 -- T3 2
+T2 -- T4 3
+T2 -- T5 1
+T3 -- T6 2
+T3 -- T7 3
+
+// componente 3: 5 vértices isolados
+I1
+I2
+I3
+I4
+I5
