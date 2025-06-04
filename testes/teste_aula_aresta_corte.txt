@@ -1,0 +1,15 @@
+grafo_aresta_vertice_corte
+
+a -- c 1
+a -- f 1
+c -- g 1
+g -- f 1
+g -- e 1
+e -- b 1
+e -- j 1
+e -- h 1
+b -- h 1
+j -- h 1
+h -- i 1
+h -- d 1
+d -- i 1

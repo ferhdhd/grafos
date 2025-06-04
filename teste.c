@@ -12,5 +12,7 @@ int main(void) {
   // else
   //   printf("NÃO É BIPARTIDO!\n");
 
-  printf("quantidade de componentes: %d\n", n_componentes(g));
+  // printf("quantidade de componentes: %d\n", n_componentes(g));
+
+  vertices_corte(g);
 }

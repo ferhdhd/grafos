@@ -11,6 +11,8 @@ typedef struct vertice {
     int distancia;
     int estado;
     int processado;
+    int pre;
+    int pos;
 } vertice;
 
 struct nodo_lista_vertice;
@@ -23,9 +25,6 @@ typedef struct nodo_lista_aresta {
 typedef struct nodo_lista_vertice {
     vertice *vertice;
     int quantidade_vizinhos;
-    int distancia;
-    int estado;
-    int processado;
     nodo_lista_aresta *inicio;
     nodo_lista_aresta *fim;
     struct nodo_lista_vertice *proximo;
@@ -88,6 +87,8 @@ nodo_lista_vertice *adiciona_vertice(grafo *g, char *nome_vertice) {
     novo->vertice->distancia = 0;
     novo->vertice->estado = 0;
     novo->vertice->processado = 0;
+    novo->vertice->pre = 0;
+    novo->vertice->pos = 0;
     g->inicio = novo;
     g->quantidade_vertices++;
 
@@ -276,6 +277,49 @@ int BFS(grafo *g, nodo_lista_vertice *raiz) {
     return 1;
 }
 
+// dfs padrão para se basear
+int DFS_base(grafo *g, nodo_lista_vertice *raiz, int *t) {
+    raiz->vertice->pre = ++*t;
+    printf("%s pre = %d\n", raiz->vertice->nome, *t);
+    raiz->vertice->estado = 1;
+    nodo_lista_aresta *nodo_aresta = raiz->inicio;
+    nodo_lista_vertice *nodo_vertice = NULL;
+    while(nodo_aresta) {
+        nodo_vertice = nodo_aresta->nodo_vertice;
+        if(nodo_vertice->vertice->estado == 0) {
+            nodo_vertice->nodo_pai = raiz;
+            printf("processa aresta %s -- %s     ÁRVORE\n", raiz->vertice->nome, nodo_vertice->vertice->nome);
+            DFS_base(g, nodo_vertice, t);
+        } else if(nodo_vertice->vertice->estado == 1 && raiz->nodo_pai != nodo_vertice) {
+            printf("processa aresta %s -- %s     FORA DA ÁRVORE\n", raiz->vertice->nome, nodo_vertice->vertice->nome);
+        }
+        nodo_aresta = nodo_aresta->proximo;
+    }
+    printf("processa vertice %s\n", raiz->vertice->nome);
+    raiz->vertice->estado = 2;
+    raiz->vertice->pos = ++*t;
+    printf("%s pos = %d\n", raiz->vertice->nome, *t);
+    return 1;
+}
+
+int DFS(grafo *g) {
+    nodo_lista_vertice *nodo_vertice = g->inicio;
+    while(nodo_vertice) {
+        nodo_vertice->vertice->estado = 0;
+        nodo_vertice = nodo_vertice->proximo;
+    }
+    int t = 0;
+    nodo_vertice = g->inicio;
+    while(nodo_vertice) {
+        if(nodo_vertice->vertice->estado == 0) {
+            printf("análise a partir da raiz %s\n", nodo_vertice->vertice->nome);
+            nodo_vertice->nodo_pai = NULL;
+            DFS_base(g, nodo_vertice, &t);
+        }
+        nodo_vertice = nodo_vertice->proximo;
+    }
+}
+
 // ------------------ FUNÇÕES PRINCIPAIS ------------------
 
 
@@ -349,7 +393,7 @@ unsigned int bipartido(grafo *g) {
 
     nodo_vertice = g->inicio;
     while(nodo_vertice) {
-        if(nodo_vertice->estado == 0) {
+        if(nodo_vertice->vertice->estado == 0) {
             if(!BFS_bipartido(g, nodo_vertice))
                 return 0;
         }
@@ -414,15 +458,15 @@ unsigned int n_componentes(grafo *g) {
 
 
 // NÃO FEITO --------------------------------------------------------
-
+// aqui aplicar uma DFS modificada para implementar o lowerpoint
 
 char *vertices_corte(grafo *g) {
-
+    DFS(g);
 }
 
 
 // NÃO FEITO --------------------------------------------------------
-
+// aqui aplicar uma DFS modificada para implementar o lowerpoint
 
 char *arestas_corte(grafo *g) {
 
