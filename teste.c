@@ -14,5 +14,6 @@ int main(void) {
 
   // printf("quantidade de componentes: %d\n", n_componentes(g));
 
-  printf("%d\n", n_componentes(g));
+  n_componentes(g);
+  diametros(g);
 }

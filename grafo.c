@@ -278,16 +278,22 @@ nodo_fila_vertice *retira_fila_menor_custo(fila *fila) {
         }
         it = it->proximo;
     }
+    
+    it = fila->inicio;
+
     if(menor_custo == fila->inicio)
         return retira_fila(fila);
-
-    it = fila->inicio;
-    while(it->proximo != menor_custo) {it = it->proximo;}
-
-    it->proximo = menor_custo->proximo;
+    else if (menor_custo == fila->fim) {
+        while (it->proximo != fila->fim) {it = it->proximo;}
+        it->proximo = NULL;
+        fila->fim = it;
+    } else {
+        while(it->proximo != menor_custo) {it = it->proximo;}
+        it->proximo = menor_custo->proximo;
+    }
     
-    if (fila->inicio == NULL)
-        fila->fim = NULL;
+    fila->quantidade--;
+    return menor_custo;
     
 }
 
@@ -555,7 +561,8 @@ char *lowpoint(grafo *g) {
     return NULL;
 }
 
-void dijkstra_base(grafo *g, nodo_lista_vertice *raiz) {
+int dijkstra_base(grafo *g, nodo_lista_vertice *raiz) {
+    int componente = raiz->vertice->componente;
     fila *fila = cria_fila();
     raiz->nodo_pai = NULL;
     raiz->vertice->estado = 1;
@@ -564,19 +571,69 @@ void dijkstra_base(grafo *g, nodo_lista_vertice *raiz) {
     nodo_fila_vertice *nodo_fila;
     nodo_lista_aresta *nodo_aresta;
     nodo_lista_vertice *nodo_vertice;
-    
+    nodo_lista_vertice *vertice_vizinho;
+    while(fila->quantidade > 0) {
+        nodo_fila = retira_fila_menor_custo(fila);
+        nodo_vertice = nodo_fila->nodo_lista_vertice;
+        printf("%s retirado, custo: %d\n", nodo_vertice->vertice->nome, nodo_vertice->vertice->custo);
+        nodo_aresta = nodo_vertice->inicio;
+        while (nodo_aresta) {
+            vertice_vizinho = nodo_aresta->nodo_vertice;
+            if(vertice_vizinho->vertice->estado == 1) {
+                if ((nodo_vertice->vertice->custo + nodo_aresta->peso) < vertice_vizinho->vertice->custo) {
+                    vertice_vizinho->nodo_pai = nodo_vertice;
+                    vertice_vizinho->vertice->custo = nodo_vertice->vertice->custo + nodo_aresta->peso;
+                }
+            } else if (vertice_vizinho->vertice->estado == 0) {
+                vertice_vizinho->nodo_pai = nodo_vertice;
+                vertice_vizinho->vertice->custo = nodo_vertice->vertice->custo + nodo_aresta->peso;
+                vertice_vizinho->vertice->estado = 1;
+                adiciona_fila(fila, vertice_vizinho);
+            }
+            nodo_aresta = nodo_aresta->proximo;
+        }
+        nodo_vertice->vertice->estado = 2;
+        free(nodo_fila);
 
+    }
+    free(fila);
+    return componente;
+}
+
+int maior_distancia(grafo *g) {
+    int maior = 0;
+    nodo_lista_vertice *v = g->inicio;
+
+    while(v) {
+        printf("vertice %s, estado:%d custo: %d\n", v->vertice->nome, v->vertice->estado, v->vertice->custo);
+        if(v->vertice->estado == 2 && v->vertice->custo > maior) {
+            maior = v->vertice->custo;
+        }
+        v = v->proximo;
+    }
+
+    return maior;
 }
 
 char *dijkstra(grafo *g) {
     reseta_grafo(g);
-    n_componentes(g);
     int diametros[g->quantidade_componentes];
-    int cont_componentes = 0;
+    int componente_atual;
+    int maior;
+    for(int i = 0; i < g->quantidade_componentes; i ++) {diametros[i] = 0;}
     nodo_lista_vertice *nodo_vertice = g->inicio;
     while(nodo_vertice) {
-        dijkstra_base(g, nodo_vertice);
+        componente_atual = dijkstra_base(g, nodo_vertice);
+        maior = maior_distancia(g);
+        printf("maior: %d\n", maior);
+        if (maior > diametros[componente_atual])
+            diametros[componente_atual]  = maior;
         reseta_grafo(g);
+        nodo_vertice = nodo_vertice->proximo;
+    }
+    
+    for(int i = 0; i < g->quantidade_componentes; i++) {
+        printf("diametro do componente: %d\n" , diametros[i]);
     }
 }
 
