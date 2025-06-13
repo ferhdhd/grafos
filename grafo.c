@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #define MAX_LINHA 2047
 
@@ -15,6 +16,8 @@ typedef struct vertice {
     int pos;
     int low;
     int corte;
+    int componente;
+    int custo;
 } vertice;
 
 struct nodo_lista_vertice;
@@ -38,6 +41,7 @@ typedef struct grafo {
     char nome[MAX_LINHA];
     int quantidade_vertices;
     int quantidade_arestas;
+    int quantidade_componentes;
     nodo_lista_vertice *inicio;
 } grafo;
 
@@ -69,6 +73,7 @@ static grafo *cria_grafo(void) {
     g->inicio = NULL;
     g->quantidade_vertices = 0;
     g->quantidade_arestas = 0;
+    g->quantidade_componentes = 0;
     strcpy(g->nome, "");
     return g;
 }
@@ -101,6 +106,8 @@ nodo_lista_vertice *adiciona_vertice(grafo *g, char *nome_vertice) {
     novo->vertice->pos = 0;
     novo->vertice->low = 0;
     novo->vertice->corte = 0;
+    novo->vertice->componente = -1;
+    novo->vertice->custo = INT_MAX;
     g->inicio = novo;
     g->quantidade_vertices++;
 
@@ -256,6 +263,34 @@ nodo_fila_vertice *retira_fila(fila *fila) {
     return removido;
 }
 
+nodo_fila_vertice *retira_fila_menor_custo(fila *fila) {
+    if (fila->inicio == NULL)
+        return NULL;
+    
+    nodo_fila_vertice *menor_custo = NULL;
+    nodo_fila_vertice *it = fila->inicio;
+    while(it) {
+        if(menor_custo == NULL) {
+            menor_custo = it;
+        } else {
+            if(it->nodo_lista_vertice->vertice->custo < menor_custo->nodo_lista_vertice->vertice->custo)
+                menor_custo = it;
+        }
+        it = it->proximo;
+    }
+    if(menor_custo == fila->inicio)
+        return retira_fila(fila);
+
+    it = fila->inicio;
+    while(it->proximo != menor_custo) {it = it->proximo;}
+
+    it->proximo = menor_custo->proximo;
+    
+    if (fila->inicio == NULL)
+        fila->fim = NULL;
+    
+}
+
 // bfs padrão para se basear
 int BFS(grafo *g, nodo_lista_vertice *raiz) {
     fila *fila = cria_fila();
@@ -385,7 +420,7 @@ unsigned int bipartido(grafo *g) {
     return 1;
 }
 
-void BFS_componente(grafo *g, nodo_lista_vertice *raiz) {
+void BFS_componente(grafo *g, nodo_lista_vertice *raiz, int quantidade_componentes) {
     fila *fila = cria_fila();
     raiz->nodo_pai = NULL;
     adiciona_fila(fila, raiz);
@@ -397,6 +432,8 @@ void BFS_componente(grafo *g, nodo_lista_vertice *raiz) {
     while(fila->quantidade > 0) {
         nodo_fila = retira_fila(fila);
         nodo_vertice = nodo_fila->nodo_lista_vertice;
+        nodo_vertice->vertice->componente = quantidade_componentes;
+        printf("qtd componentes %d\n" , quantidade_componentes);
         printf("vértice %s retirado da fila!\n", nodo_vertice->vertice->nome);
         nodo_aresta = nodo_vertice->inicio;
         while(nodo_aresta) {
@@ -427,12 +464,13 @@ unsigned int n_componentes(grafo *g) {
     while(nodo_vertice) {
         if(nodo_vertice->vertice->estado == 0) {
             printf("análise a partir da raiz %s\n", nodo_vertice->vertice->nome);
-            BFS_componente(g, nodo_vertice);
+            BFS_componente(g, nodo_vertice, quantidade_componentes);
             quantidade_componentes++;
         }
         nodo_vertice = nodo_vertice->proximo;
     }
-    return quantidade_componentes;
+    g->quantidade_componentes = quantidade_componentes;
+    return g->quantidade_componentes;
 }
 
 void reseta_grafo(grafo *g) {
@@ -460,9 +498,11 @@ void lowpoint_base(grafo *g, nodo_lista_vertice *raiz, int *t) {
     raiz->vertice->estado = 1;
     nodo_lista_aresta *nodo_aresta = raiz->inicio;
     nodo_lista_vertice *nodo_vertice = NULL;
+    int cont_filhos = 0;
     while(nodo_aresta) {
         nodo_vertice = nodo_aresta->nodo_vertice;
         if(nodo_vertice->vertice->estado == 0) {
+            cont_filhos++;
             nodo_vertice->nodo_pai = raiz;
             nodo_vertice->vertice->distancia = raiz->vertice->distancia + 1;
             nodo_vertice->vertice->low = raiz->vertice->low + 1;
@@ -479,11 +519,19 @@ void lowpoint_base(grafo *g, nodo_lista_vertice *raiz, int *t) {
             raiz->vertice->low = nodo_vertice->vertice->distancia;
             printf("processa aresta %s -- %s     LOWPOINT ENCONTRADO: %d, NÍVEL: %d\n", raiz->vertice->nome, nodo_vertice->vertice->nome, raiz->vertice->low, raiz->vertice->distancia);
         }
+
+        if (nodo_vertice->nodo_pai == raiz && raiz->vertice->distancia < nodo_vertice->vertice->low) {
+            printf("aresta %s, %s é de corte!\n", raiz->vertice->nome, nodo_aresta->nodo_vertice->vertice->nome);
+            printf("dist: %d e l(v): %d\n", raiz->vertice->distancia, maior_low_filho);
+            nodo_aresta->corte = 1;
+        }
+
         nodo_aresta = nodo_aresta->proximo;
     }
     printf("processa vertice %s\n", raiz->vertice->nome);
-    if((raiz->vertice->distancia <= maior_low_filho && raiz->vertice->distancia != 0)) {
+    if((raiz->vertice->distancia <= maior_low_filho && raiz->vertice->distancia != 0) || (raiz->vertice->distancia == 0 && cont_filhos > 1)) {
         printf("vertice %s é de corte! low_maior = %d\n", raiz->vertice->nome, maior_low_filho);
+        printf("dist: %d e cont_filhos: %d\n", raiz->vertice->distancia, cont_filhos);
         raiz->vertice->corte = 1;
     }
     raiz->vertice->estado = 2;
@@ -507,6 +555,31 @@ char *lowpoint(grafo *g) {
     return NULL;
 }
 
+void dijkstra_base(grafo *g, nodo_lista_vertice *raiz) {
+    fila *fila = cria_fila();
+    raiz->nodo_pai = NULL;
+    raiz->vertice->estado = 1;
+    raiz->vertice->custo = 0;
+    adiciona_fila(fila, raiz);
+    nodo_fila_vertice *nodo_fila;
+    nodo_lista_aresta *nodo_aresta;
+    nodo_lista_vertice *nodo_vertice;
+    
+
+}
+
+char *dijkstra(grafo *g) {
+    reseta_grafo(g);
+    n_componentes(g);
+    int diametros[g->quantidade_componentes];
+    int cont_componentes = 0;
+    nodo_lista_vertice *nodo_vertice = g->inicio;
+    while(nodo_vertice) {
+        dijkstra_base(g, nodo_vertice);
+        reseta_grafo(g);
+    }
+}
+
 char *vertices_corte(grafo *g) {
     lowpoint(g);
     return NULL;
@@ -517,6 +590,7 @@ char *arestas_corte(grafo *g) {
 }
 
 char *diametros(grafo *g) {
+    dijkstra(g);
     return NULL;
 }
 

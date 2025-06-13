@@ -14,5 +14,5 @@ int main(void) {
 
   // printf("quantidade de componentes: %d\n", n_componentes(g));
 
-  vertices_corte(g);
+  printf("%d\n", n_componentes(g));
 }
