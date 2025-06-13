@@ -13,6 +13,8 @@ typedef struct vertice {
     int processado;
     int pre;
     int pos;
+    int low;
+    int corte;
 } vertice;
 
 struct nodo_lista_vertice;
@@ -20,6 +22,7 @@ typedef struct nodo_lista_aresta {
     struct nodo_lista_aresta *proximo;
     struct nodo_lista_vertice *nodo_vertice;
     int peso;
+    int corte;
 } nodo_lista_aresta;
 
 typedef struct nodo_lista_vertice {
@@ -48,6 +51,13 @@ typedef struct fila {
     nodo_fila_vertice *fim;
     int *quantidade;
 } fila;
+
+// Definição de funções
+nodo_lista_vertice *adiciona_vertice(grafo *g, char *nome_vertice);
+void adiciona_aresta(grafo *g, nodo_lista_vertice *origem, nodo_lista_vertice *destino, int peso);
+nodo_fila_vertice *cria_nodo_fila(nodo_lista_vertice *nodo_lista_vertice);
+void adiciona_fila(fila *fila, nodo_lista_vertice *nodo_lista_vertice);
+nodo_fila_vertice *retira_fila(fila *fila);
 
 // -------------------------FUNÇÕES AUXILIARES ------------------
 static grafo *cria_grafo(void) {
@@ -89,6 +99,8 @@ nodo_lista_vertice *adiciona_vertice(grafo *g, char *nome_vertice) {
     novo->vertice->processado = 0;
     novo->vertice->pre = 0;
     novo->vertice->pos = 0;
+    novo->vertice->low = 0;
+    novo->vertice->corte = 0;
     g->inicio = novo;
     g->quantidade_vertices++;
 
@@ -103,6 +115,7 @@ void adiciona_aresta(grafo *g, nodo_lista_vertice *origem, nodo_lista_vertice *d
     }
     nodo->nodo_vertice = destino;
     nodo->peso = peso;
+    nodo->corte = 0;
     nodo->proximo = NULL;
 
     // Adiciona nodo no final da lista de adjacência
@@ -302,24 +315,6 @@ int DFS_base(grafo *g, nodo_lista_vertice *raiz, int *t) {
     return 1;
 }
 
-int DFS(grafo *g) {
-    nodo_lista_vertice *nodo_vertice = g->inicio;
-    while(nodo_vertice) {
-        nodo_vertice->vertice->estado = 0;
-        nodo_vertice = nodo_vertice->proximo;
-    }
-    int t = 0;
-    nodo_vertice = g->inicio;
-    while(nodo_vertice) {
-        if(nodo_vertice->vertice->estado == 0) {
-            printf("análise a partir da raiz %s\n", nodo_vertice->vertice->nome);
-            nodo_vertice->nodo_pai = NULL;
-            DFS_base(g, nodo_vertice, &t);
-        }
-        nodo_vertice = nodo_vertice->proximo;
-    }
-}
-
 // ------------------ FUNÇÕES PRINCIPAIS ------------------
 
 
@@ -327,25 +322,13 @@ unsigned int n_vertices(grafo *g) {
     return g->quantidade_vertices;
 }
 
-
-// --------------------------------------------------------
-
-
 unsigned int n_arestas(grafo *g) {
     return g->quantidade_arestas;
 }
 
-
-// --------------------------------------------------------
-
-
 char *nome(grafo *g) {
     return g->nome;
 }
-
-
-// --------------------------------------------------------
-
 
 int BFS_bipartido(grafo *g, nodo_lista_vertice *raiz) {
     fila *fila = cria_fila();
@@ -402,10 +385,6 @@ unsigned int bipartido(grafo *g) {
     return 1;
 }
 
-
-// --------------------------------------------------------
-
-
 void BFS_componente(grafo *g, nodo_lista_vertice *raiz) {
     fila *fila = cria_fila();
     raiz->nodo_pai = NULL;
@@ -436,7 +415,7 @@ void BFS_componente(grafo *g, nodo_lista_vertice *raiz) {
 }
 
 unsigned int n_componentes(grafo *g) {
-    int quantidade_componentes = 0;
+    unsigned int quantidade_componentes = 0;
     nodo_lista_vertice *nodo_vertice = g->inicio;
     while(nodo_vertice) {
         nodo_vertice->vertice->estado = 0;
@@ -456,34 +435,92 @@ unsigned int n_componentes(grafo *g) {
     return quantidade_componentes;
 }
 
+void reseta_grafo(grafo *g) {
+    nodo_lista_vertice *nodo_vertice = g->inicio;
+    nodo_lista_aresta *nodo_aresta = NULL;
+    while(nodo_vertice) {
+        nodo_vertice->vertice->estado = 0;
+        nodo_vertice->vertice->low = 0;
+        nodo_vertice->nodo_pai = NULL;
+        nodo_vertice->vertice->distancia = 0;
+        nodo_vertice->vertice->corte = 0;
+        nodo_aresta = nodo_vertice->inicio;
+        while(nodo_aresta) {
+            nodo_aresta->corte = 0;
+            nodo_aresta = nodo_aresta->proximo;
+        }        
+        nodo_vertice = nodo_vertice->proximo;   
+    }
+}
 
-// NÃO FEITO --------------------------------------------------------
-// aqui aplicar uma DFS modificada para implementar o lowerpoint
+void lowpoint_base(grafo *g, nodo_lista_vertice *raiz, int *t) {
+    raiz->vertice->pre = ++*t;
+    int maior_low_filho = -1;
+    printf("%s pre = %d\n", raiz->vertice->nome, *t);
+    raiz->vertice->estado = 1;
+    nodo_lista_aresta *nodo_aresta = raiz->inicio;
+    nodo_lista_vertice *nodo_vertice = NULL;
+    while(nodo_aresta) {
+        nodo_vertice = nodo_aresta->nodo_vertice;
+        if(nodo_vertice->vertice->estado == 0) {
+            nodo_vertice->nodo_pai = raiz;
+            nodo_vertice->vertice->distancia = raiz->vertice->distancia + 1;
+            nodo_vertice->vertice->low = raiz->vertice->low + 1;
+            printf("processa aresta %s -- %s     ÁRVORE\n", raiz->vertice->nome, nodo_vertice->vertice->nome);
+            lowpoint_base(g, nodo_vertice, t);
+            if(nodo_vertice->vertice->low < raiz->vertice->low) {
+                raiz->vertice->low = nodo_vertice->vertice->low;
+                printf("vertice %s           LOWPOINT HERDADO: %d, NÍVEL: %d\n", raiz->vertice->nome, raiz->vertice->low, raiz->vertice->distancia);
+            }
+            if(nodo_vertice->vertice->low > maior_low_filho) {
+                maior_low_filho = nodo_vertice->vertice->low;
+            }
+        } else if(nodo_vertice->vertice->estado == 1 && raiz->nodo_pai != nodo_vertice && nodo_vertice->vertice->distancia < raiz->vertice->low) {
+            raiz->vertice->low = nodo_vertice->vertice->distancia;
+            printf("processa aresta %s -- %s     LOWPOINT ENCONTRADO: %d, NÍVEL: %d\n", raiz->vertice->nome, nodo_vertice->vertice->nome, raiz->vertice->low, raiz->vertice->distancia);
+        }
+        nodo_aresta = nodo_aresta->proximo;
+    }
+    printf("processa vertice %s\n", raiz->vertice->nome);
+    if((raiz->vertice->distancia <= maior_low_filho && raiz->vertice->distancia != 0)) {
+        printf("vertice %s é de corte! low_maior = %d\n", raiz->vertice->nome, maior_low_filho);
+        raiz->vertice->corte = 1;
+    }
+    raiz->vertice->estado = 2;
+    raiz->vertice->pos = ++*t;
+    printf("%s pos = %d\n", raiz->vertice->nome, *t);
+
+}
+
+char *lowpoint(grafo *g) {
+    reseta_grafo(g);
+    int t = 0;
+    nodo_lista_vertice *nodo_vertice = g->inicio;
+    while(nodo_vertice) {
+        if(nodo_vertice->vertice->estado == 0) {
+            printf("análise a partir da raiz %s\n", nodo_vertice->vertice->nome);
+            lowpoint_base(g, nodo_vertice, &t);
+        }
+        nodo_vertice = nodo_vertice->proximo;
+    }
+
+    return NULL;
+}
 
 char *vertices_corte(grafo *g) {
-    DFS(g);
+    lowpoint(g);
+    return NULL;
 }
-
-
-// NÃO FEITO --------------------------------------------------------
-// aqui aplicar uma DFS modificada para implementar o lowerpoint
 
 char *arestas_corte(grafo *g) {
-
+    return NULL;
 }
-
-
-// NÃO FEITO --------------------------------------------------------
-
 
 char *diametros(grafo *g) {
-
+    return NULL;
 }
 
-
-// NÃO FEITO --------------------------------------------------------
-
-
 unsigned int destroi_grafo(grafo *g) {
-    
+    free(g);
+    return 1;
 }
