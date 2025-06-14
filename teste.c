@@ -17,4 +17,5 @@ int main(void) {
   printf("diametros: %s\n", diametros(g));
   printf("vértices de corte: %s\n", vertices_corte(g));
   printf("arestas de corte: %s\n", arestas_corte(g));
+  destroi_grafo(g);
 }

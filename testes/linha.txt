@@ -1,0 +1,10 @@
+linha
+
+aaa -- bbb
+bbb -- ccc
+ccc -- ddd
+ddd -- eee
+fff -- eee
+
+hhh -- ggg
+iii -- hhh
