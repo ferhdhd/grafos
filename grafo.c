@@ -53,7 +53,7 @@ typedef struct nodo_fila_vertice {
 typedef struct fila {
     nodo_fila_vertice *inicio;
     nodo_fila_vertice *fim;
-    int *quantidade;
+    int quantidade;
 } fila;
 
 typedef struct string_aresta {
@@ -63,10 +63,24 @@ typedef struct string_aresta {
 
 // Definição de funções
 nodo_lista_vertice *adiciona_vertice(grafo *g, char *nome_vertice);
-void adiciona_aresta(grafo *g, nodo_lista_vertice *origem, nodo_lista_vertice *destino, int peso);
+void adiciona_aresta(nodo_lista_vertice *origem, nodo_lista_vertice *destino, int peso);
 nodo_fila_vertice *cria_nodo_fila(nodo_lista_vertice *nodo_lista_vertice);
 void adiciona_fila(fila *fila, nodo_lista_vertice *nodo_lista_vertice);
 nodo_fila_vertice *retira_fila(fila *fila);
+char *dijkstra(grafo *g);
+int dijkstra_base(nodo_lista_vertice *raiz);
+char *lowpoint(grafo *g);
+void lowpoint_base(grafo *g, nodo_lista_vertice *raiz, int *t);
+void reseta_grafo(grafo *g);
+void BFS_componente(nodo_lista_vertice *raiz, int quantidade_componentes);
+int BFS_bipartido(nodo_lista_vertice *raiz);
+char *print_arestas_corte(grafo *g);
+char *print_vertices_corte(grafo *g);
+int compara_inteiros(const void *a, const void *b);
+int compara_arestas(const void *a, const void *b);
+int compara_vertices_nome(const void *a, const void *b);
+nodo_fila_vertice *retira_fila_menor_custo(fila *fila);
+fila *cria_fila(void);
 
 // -------------------------FUNÇÕES AUXILIARES ------------------
 static grafo *cria_grafo(void) {
@@ -119,7 +133,7 @@ nodo_lista_vertice *adiciona_vertice(grafo *g, char *nome_vertice) {
     return novo;
 }
 
-void adiciona_aresta(grafo *g, nodo_lista_vertice *origem, nodo_lista_vertice *destino, int peso) {  
+void adiciona_aresta(nodo_lista_vertice *origem, nodo_lista_vertice *destino, int peso) {  
     nodo_lista_aresta *nodo = malloc(sizeof(nodo_lista_aresta));
     if (!nodo) {
         perror("Erro ao alocar nodo de adjacência");
@@ -154,8 +168,6 @@ grafo *le_grafo(FILE *f) {
     char nome_vertice2[MAX_LINHA];
     int peso;
 
-    int linha_atual = 0;
-
     while (fgets(linha, sizeof(linha), f) != NULL) {
         linha[strcspn(linha, "\n")] = '\0';
 
@@ -166,7 +178,7 @@ grafo *le_grafo(FILE *f) {
             char *delimitador = strstr(linha, "--");
             if (delimitador == NULL) continue;
 
-            strncpy(nome_vertice1, linha, delimitador - linha);
+            strncpy(nome_vertice1, linha, (long unsigned int) (delimitador - linha));
             nome_vertice1[delimitador - linha] = '\0';
             while (nome_vertice1[strlen(nome_vertice1) - 1] == ' ')
                 nome_vertice1[strlen(nome_vertice1) - 1] = '\0';
@@ -181,8 +193,8 @@ grafo *le_grafo(FILE *f) {
 
             nodo_lista_vertice *v1 = adiciona_vertice(g, nome_vertice1);
             nodo_lista_vertice *v2 = adiciona_vertice(g, nome_vertice2);
-            adiciona_aresta(g, v1, v2, peso);
-            adiciona_aresta(g, v2, v1, peso);
+            adiciona_aresta(v1, v2, peso);
+            adiciona_aresta(v2, v1, peso);
             g->quantidade_arestas++;
 
         } else if(strlen(g->nome) == 0) {
@@ -217,63 +229,63 @@ void imprime_grafo(grafo *g) {
     printf("---------------------------------\n");
 }
 
-nodo_fila_vertice *cria_nodo_fila(nodo_lista_vertice *nodo_lista_vertice) {
+nodo_fila_vertice *cria_nodo_fila(nodo_lista_vertice *nodo_vertice) {
     nodo_fila_vertice *nodo_fila = malloc(sizeof(nodo_fila_vertice));
     if(nodo_fila == NULL) {
         perror("Erro ao criar nodo_fila_vertice.");
         return NULL;
     }
 
-    nodo_fila->nodo_lista_vertice = nodo_lista_vertice;
+    nodo_fila->nodo_lista_vertice = nodo_vertice;
     nodo_fila->proximo = NULL;
     return nodo_fila;
 }
 
-void adiciona_fila(fila *fila, nodo_lista_vertice *nodo_lista_vertice) {
-    nodo_fila_vertice *novo = cria_nodo_fila(nodo_lista_vertice);
-    if (fila->fim)
-        fila->fim->proximo = novo;
+void adiciona_fila(fila *fila_base, nodo_lista_vertice *nodo_vertice) {
+    nodo_fila_vertice *novo = cria_nodo_fila(nodo_vertice);
+    if (fila_base->fim)
+        fila_base->fim->proximo = novo;
     else
-        fila->inicio = novo;
-    fila->fim = novo;
-    fila->quantidade++;
+        fila_base->inicio = novo;
+    fila_base->fim = novo;
+    fila_base->quantidade++;
 }
 
-fila *cria_fila() {
-    fila *fila = malloc(sizeof(fila));
-    if(!fila) {
+fila *cria_fila(void) {
+    fila *fila_base = malloc(sizeof(fila));
+    if(!fila_base) {
         perror("Erro ao criar fila.");
         return NULL;
     }
 
-    fila->quantidade = 0;
-    fila->inicio = NULL;
-    fila->fim = NULL;
+    fila_base->quantidade = 0;
+    fila_base->inicio = NULL;
+    fila_base->fim = NULL;
 
-    return fila;
+    return fila_base;
 }
 
-nodo_fila_vertice *retira_fila(fila *fila) {
-    if (fila->inicio == NULL)
+nodo_fila_vertice *retira_fila(fila *fila_base) {
+    if (fila_base->inicio == NULL)
         return NULL; 
 
-    nodo_fila_vertice *removido = fila->inicio;
-    fila->inicio = removido->proximo;
+    nodo_fila_vertice *removido = fila_base->inicio;
+    fila_base->inicio = removido->proximo;
 
-    if (fila->inicio == NULL)
-        fila->fim = NULL;
+    if (fila_base->inicio == NULL)
+        fila_base->fim = NULL;
 
-    fila->quantidade--;
+    fila_base->quantidade--;
 
     return removido;
 }
 
-nodo_fila_vertice *retira_fila_menor_custo(fila *fila) {
-    if (fila->inicio == NULL)
+nodo_fila_vertice *retira_fila_menor_custo(fila *fila_base) {
+    if (fila_base->inicio == NULL)
         return NULL;
     
     nodo_fila_vertice *menor_custo = NULL;
-    nodo_fila_vertice *it = fila->inicio;
+    nodo_fila_vertice *it = fila_base->inicio;
     while(it) {
         if(menor_custo == NULL) {
             menor_custo = it;
@@ -284,104 +296,45 @@ nodo_fila_vertice *retira_fila_menor_custo(fila *fila) {
         it = it->proximo;
     }
     
-    it = fila->inicio;
+    it = fila_base->inicio;
 
-    if(menor_custo == fila->inicio)
-        return retira_fila(fila);
-    else if (menor_custo == fila->fim) {
-        while (it->proximo != fila->fim) {it = it->proximo;}
+    if(menor_custo == fila_base->inicio)
+        return retira_fila(fila_base);
+    else if (menor_custo == fila_base->fim) {
+        while (it->proximo != fila_base->fim) {it = it->proximo;}
         it->proximo = NULL;
-        fila->fim = it;
+        fila_base->fim = it;
     } else {
         while(it->proximo != menor_custo) {it = it->proximo;}
         it->proximo = menor_custo->proximo;
     }
     
-    fila->quantidade--;
+    fila_base->quantidade--;
     return menor_custo;
     
 }
 
-// bfs padrão para se basear
-int BFS(grafo *g, nodo_lista_vertice *raiz) {
-    fila *fila = cria_fila();
-    raiz->nodo_pai = NULL;
-    adiciona_fila(fila, raiz);
-    raiz->vertice->estado = 1;
-    nodo_fila_vertice *nodo_fila;
-    nodo_lista_aresta *nodo_aresta;
-    nodo_lista_vertice *nodo_vertice;
-    nodo_lista_vertice *vertice_vizinho;
-    while(fila->quantidade > 0) {
-        nodo_fila = retira_fila(fila);
-        nodo_vertice = nodo_fila->nodo_lista_vertice;
-        //printf("vértice %s retirado da fila!\n", nodo_vertice->vertice->nome);
-        nodo_aresta = nodo_vertice->inicio;
-        while(nodo_aresta) {
-            vertice_vizinho = nodo_aresta->nodo_vertice;
-            if(vertice_vizinho->vertice->estado == 1) {
-                //printf("processando aresta %s -- %s    FORA DA ÁRVORE\n", nodo_vertice->vertice->nome, vertice_vizinho->vertice->nome);
-            } else if(vertice_vizinho->vertice->estado == 0) {
-                //printf("processando aresta %s -- %s   ÁRVORE\n", nodo_vertice->vertice->nome, vertice_vizinho->vertice->nome);
-                //printf("processando vertice %s   ÁRVORE\n", vertice_vizinho->vertice->nome);
-                adiciona_fila(fila, vertice_vizinho);
-                vertice_vizinho->vertice->estado = 1;
-                vertice_vizinho->vertice->distancia = nodo_vertice->vertice->distancia + 1;
-            }
-            nodo_aresta = nodo_aresta->proximo;
-        }
-        nodo_vertice->vertice->estado = 2;
-        free(nodo_fila);
-    }
-    return 1;
-}
-
-// dfs padrão para se basear
-int DFS_base(grafo *g, nodo_lista_vertice *raiz, int *t) {
-    raiz->vertice->pre = ++*t;
-    //printf("%s pre = %d\n", raiz->vertice->nome, *t);
-    raiz->vertice->estado = 1;
-    nodo_lista_aresta *nodo_aresta = raiz->inicio;
-    nodo_lista_vertice *nodo_vertice = NULL;
-    while(nodo_aresta) {
-        nodo_vertice = nodo_aresta->nodo_vertice;
-        if(nodo_vertice->vertice->estado == 0) {
-            nodo_vertice->nodo_pai = raiz;
-            //printf("processa aresta %s -- %s     ÁRVORE\n", raiz->vertice->nome, nodo_vertice->vertice->nome);
-            DFS_base(g, nodo_vertice, t);
-        } else if(nodo_vertice->vertice->estado == 1 && raiz->nodo_pai != nodo_vertice) {
-            //printf("processa aresta %s -- %s     FORA DA ÁRVORE\n", raiz->vertice->nome, nodo_vertice->vertice->nome);
-        }
-        nodo_aresta = nodo_aresta->proximo;
-    }
-    //printf("processa vertice %s\n", raiz->vertice->nome);
-    raiz->vertice->estado = 2;
-    raiz->vertice->pos = ++*t;
-    //printf("%s pos = %d\n", raiz->vertice->nome, *t);
-    return 1;
-}
-
 int compara_vertices_nome(const void *a, const void *b) {
-    const vertice *v1 = *(const vertice **)a;
-    const vertice *v2 = *(const vertice **)b;
+    const vertice *v1 = *(const vertice * const *)a;
+    const vertice *v2 = *(const vertice * const *)b;
 
     return strcmp(v1->nome, v2->nome);
 }
 
 int compara_arestas(const void *a, const void *b) {
-    const string_aresta *e1 = *(const string_aresta **)a;
-    const string_aresta *e2 = *(const string_aresta **)b;
+    const string_aresta *e1 = *(const string_aresta * const *)a;
+    const string_aresta *e2 = *(const string_aresta * const *)b;
 
     return strcmp(e1->v1, e2->v1);
 }
 
 int compara_inteiros(const void *a, const void *b) {
-    return (*(int *)a - *(int *)b);
+    return (*(const int *)a - *(const int *)b);
 }
 
 char *print_vertices_corte(grafo *g) {
     int i = 0;
-    vertice **v_corte = malloc(sizeof(vertice*) * g->quantidade_vertices);
+    vertice **v_corte = malloc(sizeof(vertice*) * (long unsigned int) g->quantidade_vertices);
     nodo_lista_vertice *it = g->inicio;
 
     while (it) {
@@ -392,10 +345,10 @@ char *print_vertices_corte(grafo *g) {
         it = it->proximo;
     }
 
-    qsort(v_corte, i, sizeof(vertice*), compara_vertices_nome);
+    qsort(v_corte, (long unsigned int)i, sizeof(vertice*), compara_vertices_nome);
 
     int tamanho_total = i * (MAX_LINHA + 1);
-    char *resultado = malloc(tamanho_total);
+    char *resultado = malloc((long unsigned int)tamanho_total);
     
     if (!resultado) {
         free(v_corte);
@@ -414,8 +367,8 @@ char *print_vertices_corte(grafo *g) {
 }
 
 char *print_arestas_corte(grafo *g) {
-    char *aresta_corte = malloc(sizeof(char)* MAX_LINHA*g->quantidade_arestas*2);
-    string_aresta **array = malloc(sizeof(string_aresta*) * g->quantidade_arestas);
+    char *aresta_corte = malloc(sizeof(char)* MAX_LINHA * (long unsigned int) g->quantidade_arestas*2);
+    string_aresta **array = malloc(sizeof(string_aresta*) * (long unsigned int) g->quantidade_arestas);
     int i = 0;
     string_aresta *aux = NULL;
     nodo_lista_vertice *it = g->inicio;
@@ -442,7 +395,7 @@ char *print_arestas_corte(grafo *g) {
         it = it->proximo;
     }
 
-    qsort(array, i, sizeof(string_aresta*), compara_arestas);
+    qsort(array, (unsigned int) i, sizeof(string_aresta*), compara_arestas);
 
     int pos = 0;
     for (int j = 0; j < i; j++) {
@@ -457,33 +410,34 @@ char *print_arestas_corte(grafo *g) {
     return aresta_corte;
 } 
 
+int maior_distancia(grafo *g);
 
 // ------------------ FUNÇÕES PRINCIPAIS ------------------
 
 
 unsigned int n_vertices(grafo *g) {
-    return g->quantidade_vertices;
+    return (unsigned int) g->quantidade_vertices;
 }
 
 unsigned int n_arestas(grafo *g) {
-    return g->quantidade_arestas;
+    return (unsigned int) g->quantidade_arestas;
 }
 
 char *nome(grafo *g) {
     return g->nome;
 }
 
-int BFS_bipartido(grafo *g, nodo_lista_vertice *raiz) {
-    fila *fila = cria_fila();
+int BFS_bipartido(nodo_lista_vertice *raiz) {
+    fila *fila_base = cria_fila();
     raiz->nodo_pai = NULL;
-    adiciona_fila(fila, raiz);
+    adiciona_fila(fila_base, raiz);
     raiz->vertice->estado = 1;
     nodo_fila_vertice *nodo_fila;
     nodo_lista_aresta *nodo_aresta;
     nodo_lista_vertice *nodo_vertice;
     nodo_lista_vertice *vertice_vizinho;
-    while(fila->quantidade > 0) {
-        nodo_fila = retira_fila(fila);
+    while(fila_base->quantidade > 0) {
+        nodo_fila = retira_fila(fila_base);
         nodo_vertice = nodo_fila->nodo_lista_vertice;
         //printf("vértice %s retirado da fila!\n", nodo_vertice->vertice->nome);
         nodo_aresta = nodo_vertice->inicio;
@@ -497,7 +451,7 @@ int BFS_bipartido(grafo *g, nodo_lista_vertice *raiz) {
             } else if(vertice_vizinho->vertice->estado == 0) {
                 //printf("processando aresta %s -- %s   ÁRVORE\n", nodo_vertice->vertice->nome, vertice_vizinho->vertice->nome);
                 //printf("processando vertice %s   ÁRVORE\n", vertice_vizinho->vertice->nome);
-                adiciona_fila(fila, vertice_vizinho);
+                adiciona_fila(fila_base, vertice_vizinho);
                 vertice_vizinho->vertice->estado = 1;
                 vertice_vizinho->vertice->distancia = nodo_vertice->vertice->distancia + 1;
             }
@@ -520,7 +474,7 @@ unsigned int bipartido(grafo *g) {
     nodo_vertice = g->inicio;
     while(nodo_vertice) {
         if(nodo_vertice->vertice->estado == 0) {
-            if(!BFS_bipartido(g, nodo_vertice))
+            if(!BFS_bipartido(nodo_vertice))
                 return 0;
         }
         nodo_vertice = nodo_vertice->proximo;
@@ -528,17 +482,17 @@ unsigned int bipartido(grafo *g) {
     return 1;
 }
 
-void BFS_componente(grafo *g, nodo_lista_vertice *raiz, int quantidade_componentes) {
-    fila *fila = cria_fila();
+void BFS_componente(nodo_lista_vertice *raiz, int quantidade_componentes) {
+    fila *fila_base = cria_fila();
     raiz->nodo_pai = NULL;
-    adiciona_fila(fila, raiz);
+    adiciona_fila(fila_base, raiz);
     raiz->vertice->estado = 1;
     nodo_fila_vertice *nodo_fila;
     nodo_lista_aresta *nodo_aresta;
     nodo_lista_vertice *nodo_vertice;
     nodo_lista_vertice *vertice_vizinho;
-    while(fila->quantidade > 0) {
-        nodo_fila = retira_fila(fila);
+    while(fila_base->quantidade > 0) {
+        nodo_fila = retira_fila(fila_base);
         nodo_vertice = nodo_fila->nodo_lista_vertice;
         nodo_vertice->vertice->componente = quantidade_componentes;
         //printf("qtd componentes %d\n" , quantidade_componentes);
@@ -549,7 +503,7 @@ void BFS_componente(grafo *g, nodo_lista_vertice *raiz, int quantidade_component
             if(vertice_vizinho->vertice->estado == 0) {
                 //printf("processando aresta %s -- %s   ÁRVORE\n", nodo_vertice->vertice->nome, vertice_vizinho->vertice->nome);
                 //printf("processando vertice %s   ÁRVORE\n", vertice_vizinho->vertice->nome);
-                adiciona_fila(fila, vertice_vizinho);
+                adiciona_fila(fila_base, vertice_vizinho);
                 vertice_vizinho->vertice->estado = 1;
             }
             nodo_aresta = nodo_aresta->proximo;
@@ -560,7 +514,7 @@ void BFS_componente(grafo *g, nodo_lista_vertice *raiz, int quantidade_component
 }
 
 unsigned int n_componentes(grafo *g) {
-    unsigned int quantidade_componentes = 0;
+    int quantidade_componentes = 0;
     nodo_lista_vertice *nodo_vertice = g->inicio;
     while(nodo_vertice) {
         nodo_vertice->vertice->estado = 0;
@@ -572,13 +526,13 @@ unsigned int n_componentes(grafo *g) {
     while(nodo_vertice) {
         if(nodo_vertice->vertice->estado == 0) {
             //printf("análise a partir da raiz %s\n", nodo_vertice->vertice->nome);
-            BFS_componente(g, nodo_vertice, quantidade_componentes);
+            BFS_componente(nodo_vertice, quantidade_componentes);
             quantidade_componentes++;
         }
         nodo_vertice = nodo_vertice->proximo;
     }
     g->quantidade_componentes = quantidade_componentes;
-    return g->quantidade_componentes;
+    return (unsigned int) g->quantidade_componentes;
 }
 
 void reseta_grafo(grafo *g) {
@@ -663,19 +617,19 @@ char *lowpoint(grafo *g) {
     return NULL;
 }
 
-int dijkstra_base(grafo *g, nodo_lista_vertice *raiz) {
+int dijkstra_base(nodo_lista_vertice *raiz) {
     int componente = raiz->vertice->componente;
-    fila *fila = cria_fila();
+    fila *fila_base = cria_fila();
     raiz->nodo_pai = NULL;
     raiz->vertice->estado = 1;
     raiz->vertice->custo = 0;
-    adiciona_fila(fila, raiz);
+    adiciona_fila(fila_base, raiz);
     nodo_fila_vertice *nodo_fila;
     nodo_lista_aresta *nodo_aresta;
     nodo_lista_vertice *nodo_vertice;
     nodo_lista_vertice *vertice_vizinho;
-    while(fila->quantidade > 0) {
-        nodo_fila = retira_fila_menor_custo(fila);
+    while(fila_base->quantidade > 0) {
+        nodo_fila = retira_fila_menor_custo(fila_base);
         nodo_vertice = nodo_fila->nodo_lista_vertice;
         nodo_aresta = nodo_vertice->inicio;
         while (nodo_aresta) {
@@ -689,7 +643,7 @@ int dijkstra_base(grafo *g, nodo_lista_vertice *raiz) {
                 vertice_vizinho->nodo_pai = nodo_vertice;
                 vertice_vizinho->vertice->custo = nodo_vertice->vertice->custo + nodo_aresta->peso;
                 vertice_vizinho->vertice->estado = 1;
-                adiciona_fila(fila, vertice_vizinho);
+                adiciona_fila(fila_base, vertice_vizinho);
             }
             nodo_aresta = nodo_aresta->proximo;
         }
@@ -697,7 +651,7 @@ int dijkstra_base(grafo *g, nodo_lista_vertice *raiz) {
         free(nodo_fila);
 
     }
-    free(fila);
+    free(fila_base);
     return componente;
 }
 
@@ -720,13 +674,13 @@ char *dijkstra(grafo *g) {
     reseta_grafo(g);
     n_componentes(g);
     reseta_grafo(g);
-    int diametros[g->quantidade_componentes];
+    int *diametros = malloc(sizeof(int) * (long unsigned int)g->quantidade_componentes);
     int componente_atual;
     int maior;
     for(int i = 0; i < g->quantidade_componentes; i ++) {diametros[i] = 0;}
     nodo_lista_vertice *nodo_vertice = g->inicio;
     while(nodo_vertice) {
-        componente_atual = dijkstra_base(g, nodo_vertice);
+        componente_atual = dijkstra_base(nodo_vertice);
         maior = maior_distancia(g);
         if (maior > diametros[componente_atual])
             diametros[componente_atual]  = maior;
@@ -734,10 +688,10 @@ char *dijkstra(grafo *g) {
         nodo_vertice = nodo_vertice->proximo;
     }
     
-    qsort(diametros, g->quantidade_componentes, sizeof(int), compara_inteiros);
+    qsort(diametros, (long unsigned int)g->quantidade_componentes, sizeof(int), compara_inteiros);
 
     int tamanho_total = g->quantidade_componentes * 12;
-    char *resultado = malloc(sizeof(char) * tamanho_total);
+    char *resultado = malloc(sizeof(char) * (long unsigned int) tamanho_total);
     if (!resultado) return NULL;
 
     resultado[0] = '\0';

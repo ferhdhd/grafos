@@ -7,10 +7,10 @@ int main(void) {
 
   grafo *g = le_grafo(stdin);
   imprime_grafo(g);
-  // if(bipartido(g))
-  //   printf("É BIPARTIDO!\n");
-  // else
-  //   printf("NÃO É BIPARTIDO!\n");
+  if(bipartido(g))
+    printf("bipartido: sim\n");
+  else
+    printf("bipartido: não\n");
 
 
   printf("%d componentes\n", n_componentes(g));
