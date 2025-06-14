@@ -12,8 +12,9 @@ int main(void) {
   // else
   //   printf("NÃO É BIPARTIDO!\n");
 
-  // printf("quantidade de componentes: %d\n", n_componentes(g));
 
-  n_componentes(g);
-  diametros(g);
+  printf("%d componentes\n", n_componentes(g));
+  printf("diametros: %s\n", diametros(g));
+  printf("vértices de corte: %s\n", vertices_corte(g));
+  printf("arestas de corte: %s\n", arestas_corte(g));
 }
